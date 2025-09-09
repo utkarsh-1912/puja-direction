@@ -1,103 +1,139 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useMemo, useState } from "react";
+import Compass from "@/components/Compass";
+import { getSuggestion, type PujaContext, TRADITIONS } from "@/lib/vastuRules";
+import useGeolocation from "@/hooks/useGeolocation";
+import SunCalc from "suncalc";
+
+export default function HomePage() {
+  const [tradition, setTradition] = useState<PujaContext["tradition"]>("east_common");
+  const [ritual, setRitual] = useState<PujaContext["ritual"]>("daily_puja");
+  const [date, setDate] = useState(() => new Date());
+  const { coords, error: geoError, isLoading: geoLoading } = useGeolocation();
+
+  // recompute periodically to keep time fresh
+  useEffect(() => {
+    const t = setInterval(() => setDate(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const sunInfo = useMemo(() => {
+    if (!coords) return null;
+    const { latitude, longitude } = coords;
+    const times = SunCalc.getTimes(date, latitude, longitude);
+    const pos = SunCalc.getPosition(date, latitude, longitude);
+    return { times, pos };
+  }, [coords, date]);
+
+  const suggestion = useMemo(() => {
+    return getSuggestion({
+      tradition,
+      ritual,
+      now: date,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+      sunInfo,
+    });
+  }, [tradition, ritual, date, coords, sunInfo]);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="mx-auto max-w-3xl px-4 py-8">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Puja Direction Finder</h1>
+        <p className="text-sm text-slate-600 mt-1">
+          Uses your device compass, location, and time to help you align as per your selected tradition.
+        </p>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <section className="grid gap-4 md:grid-cols-3 mb-6">
+        <div className="p-4 rounded-2xl shadow-sm border bg-white">
+          <label className="block text-sm font-medium mb-1">Tradition</label>
+          <select
+            className="w-full rounded-xl border px-3 py-2"
+            value={tradition}
+            onChange={(e) => setTradition(e.target.value as any)}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {TRADITIONS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-500 mt-2">{TRADITIONS.find(t => t.value === tradition)?.hint}</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+        <div className="p-4 rounded-2xl shadow-sm border bg-white">
+          <label className="block text-sm font-medium mb-1">Ritual / Context</label>
+          <select
+            className="w-full rounded-xl border px-3 py-2"
+            value={ritual}
+            onChange={(e) => setRitual(e.target.value as any)}
+          >
+            <option value="daily_puja">Daily Puja</option>
+            <option value="sandhya">Sandhyā (evening)</option>
+            <option value="meditation">Meditation/Dhyāna</option>
+          </select>
+          <p className="text-xs text-slate-500 mt-2">
+            Choose what you’re about to perform (affects direction suggestion).
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl shadow-sm border bg-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">Location</div>
+              {geoLoading ? (
+                <div className="text-xs mt-1">Detecting…</div>
+              ) : coords ? (
+                <div className="text-xs mt-1">
+                  {coords.latitude.toFixed(3)}°, {coords.longitude.toFixed(3)}°
+                </div>
+              ) : (
+                <div className="text-xs mt-1 text-rose-600">
+                  {geoError ? geoError : "Location not available."}
+                </div>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium">Time</div>
+              <div className="text-xs mt-1">{date.toLocaleString()}</div>
+            </div>
+          </div>
+          {sunInfo && (
+            <div className="text-xs text-slate-500 mt-2">
+              Sunrise: {sunInfo.times.sunrise?.toLocaleTimeString?.() ?? "-"} ·
+              Sunset: {sunInfo.times.sunset?.toLocaleTimeString?.() ?? "-"}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-2xl shadow-sm border bg-white p-4">
+          <Compass targetBearing={suggestion.targetBearing} />
+        </div>
+
+        <div className="rounded-2xl shadow-sm border bg-white p-4">
+          <h2 className="text-xl font-semibold">Suggested Direction</h2>
+          <div className="mt-2">
+            <div className="text-3xl font-bold">{suggestion.label}</div>
+            <div className="text-sm text-slate-600 mt-1">
+              Aim for bearing <span className="font-semibold">{Math.round(suggestion.targetBearing)}°</span>{" "}
+              (0° = North, 90° = East).
+            </div>
+            <ul className="list-disc ml-5 mt-3 text-sm text-slate-700 space-y-1">
+              {suggestion.notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          </div>
+
+          <div className="mt-4 text-xs text-slate-500">
+            Tip: Device compass works best away from metal/magnets and on HTTPS (secure context). iOS may ask for motion & orientation permission.
+          </div>
+        </div>
+      </section>
+
+      <footer className="mt-8 text-xs text-slate-500">
+        Direction preferences vary by sampradāya/household. This tool provides configurable, commonly accepted options—please follow your family guru/ācārya if it differs.
       </footer>
-    </div>
+    </main>
   );
 }
